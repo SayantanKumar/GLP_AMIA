@@ -11,11 +11,11 @@
 
 ## Overview
 
-This repository contains analysis notebooks for the study **"Temporally Phenotyping GLP-1RA Case Reports with Large Language Models: A Textual Time Series Corpus and Risk Modeling"**. This paper has been accepted as a full paper in the AMIA Annual Symposium, to be held at Dallas on November 2026.
+This repository contains analysis notebooks for the study **"Temporally Phenotyping GLP-1RA Case Reports with Large Language Models: A Textual Time Series Corpus and Risk Modeling"**.
 
 The study converts PubMed Open Access single-patient case reports involving glucagon-like peptide-1 receptor agonists (GLP-1RAs) into clinical textual time series: event-time pairs where each clinical event is assigned a timestamp in hours relative to a case-specific reference point. The paper uses these timelines to evaluate LLM-based temporal extraction against expert annotations, characterize diagnosis patterns in the GLP-1RA PMOA cohort, and demonstrate downstream time-to-onset modeling for kidney, cardiovascular, and respiratory outcomes.
 
-The notebooks in this release are primarily for cohort characterization, UMLS diagnosis normalization, threshold-sweep evaluation, and survival analysis after timeline extraction has already been run. Raw PMOA texts, expert annotations, model outputs, and large intermediate artifacts are not included here unless released separately.
+The notebooks in this release are primarily for cohort characterization, UMLS diagnosis normalization, threshold-sweep evaluation, and survival analysis after timeline extraction has already been run. The repository now includes `annotations.zip`, which expands to the released manual annotations, LLM-generated textual time series, demographic features, and diagnosis features used by the analyses. Raw PMOA full text and the broader PMOA annotation tree are not included.
 
 ## Figures
 
@@ -39,6 +39,8 @@ The notebooks in this release are primarily for cohort characterization, UMLS di
 
 ```text
 code_github/
+|-- annotations.zip                               # Released annotations archive; expands to annotations/
+|-- annotations/                                  # Manual, LLM, diagnosis, and demographic annotations
 |-- create_medspacy_diagnosis_cui_data.ipynb      # Extract dx2 annotations and link diagnoses to UMLS CUIs
 |-- diagnosis_GLP_PMOA.ipynb                      # GLP/diabetes cohort selection and diagnosis analyses
 |-- diagnosis_char_med_spacy.ipynb                # Exploratory full-PMOA UMLS diagnosis summaries
@@ -51,14 +53,15 @@ code_github/
 
 ## Workflow
 
-The analysis proceeds in six stages:
+The analysis proceeds in seven stages:
 
-1. **Diagnosis annotation ingestion**: `create_medspacy_diagnosis_cui_data.ipynb` reads diagnosis `.bsv` files from a sharded PMOA annotation directory and writes `full_linked_diagnosis_data.pkl`.
-2. **GLP-1RA and diabetes cohort setup**: `diagnosis_GLP_PMOA.ipynb` loads PMOA diagnosis annotations, restricts to GLP-1RA case reports, identifies diabetes-related reports, samples comparison cases, and creates linked diagnosis pickles.
-3. **Diagnosis normalization and prevalence**: `diagnosis_char_med_spacy.ipynb` and `diagnosis-characterization-prevalence.ipynb` aggregate UMLS canonical diagnoses and disease-category prevalence.
-4. **Timeline quality evaluation**: `threshold_sweep.ipynb` consumes precomputed `best_matches*.csv` files and computes event match rate, concordance, and AULTC across cosine-distance thresholds.
-5. **Outcome extraction from textual time series**: `survival_analyses_glp.ipynb` searches LLM-extracted event-time CSVs for cardiovascular, respiratory, and kidney outcome keywords with lightweight negation handling.
-6. **Survival modeling**: `survival_analyses_glp.ipynb` fills censoring times from each timeline's last observed timestamp and fits Kaplan-Meier and age/sex-adjusted Cox models.
+1. **Annotation archive setup**: `annotations.zip` expands to the manual timelines, LLM timelines, demographic table, diagnosis table, and precomputed match files.
+2. **Diagnosis annotation ingestion**: `create_medspacy_diagnosis_cui_data.ipynb` can recreate UMLS-linked diagnosis pickles from a local sharded PMOA annotation directory when those upstream files are available.
+3. **GLP-1RA and diabetes cohort setup**: `diagnosis_GLP_PMOA.ipynb` loads PMOA diagnosis annotations or the released diagnosis feature table, restricts to GLP-1RA case reports, identifies diabetes-related reports, samples comparison cases, and creates linked diagnosis pickles.
+4. **Diagnosis normalization and prevalence**: `diagnosis_char_med_spacy.ipynb` and `diagnosis-characterization-prevalence.ipynb` aggregate UMLS canonical diagnoses and disease-category prevalence.
+5. **Timeline quality evaluation**: `threshold_sweep.ipynb` consumes precomputed `annotations/**/matches/best_matches*.csv` files and computes event match rate, concordance, and AULTC across cosine-distance thresholds.
+6. **Outcome extraction from textual time series**: `survival_analyses_glp.ipynb` searches LLM-extracted event-time CSVs, especially the GPT5 treatment/control folders, for cardiovascular, respiratory, and kidney outcome keywords with lightweight negation handling.
+7. **Survival modeling**: `survival_analyses_glp.ipynb` fills censoring times from each timeline's last observed timestamp and fits Kaplan-Meier and age/sex-adjusted Cox models.
 
 ## Quick Start
 
@@ -89,18 +92,29 @@ nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_n
 
 The first UMLS linker run may download additional knowledge-base files.
 
-### 2. Prepare Local Artifacts
+### 2. Unpack Annotation Archive
 
-The notebooks expect local research artifacts that are not committed to this repository:
+If the `annotations/` folder is not already present, unpack the archive from the repository root:
+
+```bash
+unzip annotations.zip
+```
+
+The archive expands to `annotations/`. If both the zip file and folder are present, the notebooks can use the folder directly.
+
+### 3. Prepare Local Artifacts
+
+The repository includes the GLP-1RA annotation release in `annotations.zip`, including model timelines, A1/A2 manual timelines, demographic features, diagnosis features, and precomputed match files.
+
+To fully rerun every notebook from the original raw pipeline, you may still need local research artifacts that are not committed to this repository:
 
 - PMOA diagnosis annotation folders with paths like `PMC000xxxxxx/anns/dx2/PMC*_body.txt.bsv.gz`
 - GLP-1RA case report text files named like `PMC*_body.txt`
-- LLM-extracted textual time series CSV files with at least `event` and `time` columns
-- Expert/reference timeline files and `best_matches*.csv` comparison outputs
-- Demographic CSVs used for age/sex adjustment
 - Intermediate diagnosis pickle files such as `full_linked_diagnosis_data.pkl`, `glp_linked_diagnosis_data.pkl`, `diagnosis_case_diabetes_glp.pkl`, and `diagnosis_control_diabetes_nonglp.pkl`
 
-### 3. Update Paths
+Several of those intermediate pickles can be regenerated from the released CSV annotations plus the scispaCy/UMLS pipeline, but the full PMOA source corpus is not bundled here.
+
+### 4. Update Paths
 
 The notebooks currently contain absolute paths from the study environment, for example:
 
@@ -110,9 +124,9 @@ The notebooks currently contain absolute paths from the study environment, for e
 /Users/kumars33/Desktop/TTA/Textual_tabular_alignment-main/
 ```
 
-Before running, edit the path cells near the top of each notebook to point to your local copies of the PMOA annotations, case reports, timeline CSVs, and match files.
+Before running, edit the path cells near the top of each notebook to point to your local copies of the PMOA annotations, case reports, timeline CSVs, and match files. For many post-extraction analyses, these paths can be changed to the corresponding files under `annotations/`.
 
-### 4. Run Notebooks
+### 5. Run Notebooks
 
 Open Jupyter and run only the notebooks needed for your analysis:
 
@@ -129,6 +143,72 @@ Suggested order:
 5. `survival_analyses_glp.ipynb`
 
 `diagnosis_char_med_spacy.ipynb` is an exploratory companion for full-PMOA diagnosis summaries.
+
+## Annotations
+
+The annotation archive has this top-level layout:
+
+```text
+annotations/
+|-- demo_glp_n140.csv                 # Demographics extracted for GLP-1RA cases
+|-- dx_glp_n140.csv                   # Diagnosis feature annotations
+|-- manual_annotations/
+|   |-- best_performer_A1/            # Expert annotator A1 timelines
+|   `-- 2nd_best_performer_A2/        # Expert annotator A2 timelines and A2-vs-A1 matches
+`-- LLM_annotations/
+    |-- l33_70b_tts/                  # Llama-3.3-70B-Instruct timelines
+    |-- DS_l33_70b_tts/               # DeepSeek-R1-Distill-Llama-70B timelines
+    |-- DSR1_0528_n140/               # DeepSeek R1 timelines
+    |-- gpt5_tts/                     # GPT5 timelines plus treatment/control subsets
+    |-- o1_tts/                       # O1 timelines
+    |-- o3_tts/                       # O3 timelines
+    `-- o4mini_tts/                   # O4mini timelines
+```
+
+Model-folder mapping:
+
+| Folder | Model name in paper | Notes |
+| --- | --- | --- |
+| `l33_70b_tts/` | `Llama3.3-70B-Instruct` | Includes cleaned CSV/BSV timelines and match files. |
+| `DS_l33_70b_tts/` | `DeepSeek-R1-Distill-Llama-70B` | Includes cleaned CSV variants and match files. |
+| `DSR1_0528_n140/` | `DeepSeek R1` | Includes cleaned CSV/BSV timelines and match files. |
+| `gpt5_tts/` | `GPT5` | Includes cleaned CSV/BSV timelines, match files, and the 82-case treatment/control subsets used in survival analysis. |
+| `o1_tts/` | `O1` | Includes cleaned CSV/BSV timelines and match files. |
+| `o3_tts/` | `O3` | Includes cleaned CSV/BSV timelines and match files. |
+| `o4mini_tts/` | `O4mini` | Includes cleaned CSV/BSV timelines and match files. |
+
+Manual annotations:
+
+| Folder | Meaning | Format |
+| --- | --- | --- |
+| `manual_annotations/best_performer_A1/` | Expert annotator A1 timelines | CSV files with `event,time` columns. |
+| `manual_annotations/2nd_best_performer_A2/` | Expert annotator A2 timelines | CSV files with `event,time` columns, plus match files comparing A2 to A1. |
+
+Feature annotations:
+
+| File | Description |
+| --- | --- |
+| `annotations/demo_glp_n140.csv` | Age, sex, ethnicity, source case path, and PMCID. |
+| `annotations/dx_glp_n140.csv` | One row per case with `diagnosis_1`, `diagnosis_2`, ... fields. |
+
+Timeline files are provided in two common formats:
+
+```csv
+event,time
+35 years old,0
+male,0
+presented for medical weight-loss management,0
+weight 118 kg,0
+```
+
+```text
+35 years old | 0
+male | 0
+presented for medical weight-loss management | 0
+weight 118 kg | 0
+```
+
+The archive also contains precomputed `matches/best_matches*.csv` files used by `threshold_sweep.ipynb`. These files store predicted/reference event alignments and similarity errors used to compute event match rate, concordance, and AULTC.
 
 ## Main Outputs
 
@@ -147,7 +227,7 @@ Suggested order:
 
 ## Data
 
-This repository does not include the full PubMed Open Access source corpus, intermediate PMOA annotation trees, expert annotations, or all LLM-extracted timelines. The paper reports that temporal annotations and code will be released upon acceptance. Until those artifacts are available, the notebooks should be treated as reproducibility and analysis code for users who have the corresponding local data.
+This repository includes the released GLP-1RA annotation archive (`annotations.zip`) with expert timelines, LLM timelines, diagnosis features, demographic features, and precomputed matching outputs. It does not include the full PubMed Open Access source corpus or the broader intermediate PMOA annotation tree used to construct the initial candidate pool.
 
 Expected timeline CSV format:
 
@@ -164,7 +244,7 @@ Times are stored in hours relative to the case reference point. Negative values 
 
 ## Models
 
-The paper evaluates multiple LLMs for textual time-series extraction, including DeepSeek R1, DeepSeek-R1-Distill-Llama-70B, Llama-3.3-70B-Instruct, GPT5, O1, O3, and O4mini. The notebooks in this archive do not serve or call those LLMs directly; instead, they analyze generated timeline outputs and match files.
+The paper evaluates multiple LLMs for textual time-series extraction, including DeepSeek R1, DeepSeek-R1-Distill-Llama-70B, Llama-3.3-70B-Instruct, GPT5, O1, O3, and O4mini. The notebooks in this archive do not serve or call those LLMs directly; instead, they analyze generated timeline outputs and match files included under `annotations/LLM_annotations/`.
 
 For diagnosis normalization, the notebooks use:
 
@@ -183,7 +263,7 @@ For survival modeling, the notebooks use:
 
 - Several notebooks are exploratory and contain repeated or commented analysis cells from different experiments.
 - Many paths are absolute and must be changed before reuse.
-- Some cells assume intermediate pickle files or `best_matches*.csv` files have already been created.
+- Some cells assume intermediate pickle files have already been created; match files are included in `annotations/**/matches/`.
 - The `compare_tts/` folder in this archive is empty aside from system metadata; threshold-sweep logic is currently in `threshold_sweep.ipynb`.
 - Outcome detection in the survival notebook is keyword-based and should be interpreted as time to first documented mention in the textual time series, not necessarily biological onset.
 - Case reports are a biased clinical-informatics cohort, not a representative epidemiologic sample; hazard ratios in the paper are associative rather than causal.
@@ -202,4 +282,4 @@ If you use this code or build on this work, please cite:
 }
 ```
 
-
+Please update the citation with the final proceedings details once available.
