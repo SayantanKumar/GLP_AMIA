@@ -282,4 +282,3 @@ If you use this code or build on this work, please cite:
 }
 ```
 
-Please update the citation with the final proceedings details once available.
